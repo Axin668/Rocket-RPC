@@ -3,16 +3,20 @@
 #include <stdio.h>
 #include "rocket/common/log.h"
 #include "rocket/common/util.h"
+#include "rocket/common/config.h"
 
 namespace rocket_rpc {
 
 static Logger* g_logger = nullptr;
 
 Logger* Logger::GetGlobalLogger() {
-  if (g_logger) {
-    return g_logger;
-  }
-  return g_logger = new Logger();
+  return g_logger;
+}
+
+void Logger::InitGlobalLogger() {
+  LogLevel global_log_level = StringToLogLevel(Config::GetGlobalConfig()->m_log_level);
+  printf("Init log level [%s]\n", LogLevelToString(global_log_level).c_str());
+  g_logger = new Logger(global_log_level);
 }
 
 std::string LogLevelToString(LogLevel level) {
@@ -28,6 +32,17 @@ std::string LogLevelToString(LogLevel level) {
   default:
     return "UNKNOWN";
   }
+}
+
+LogLevel StringToLogLevel(const std::string& log_level) {
+  if (log_level == "DEBUG") {
+    return Debug;
+  } else if (log_level == "INFO") {
+    return Info;
+  } else if (log_level == "ERROR") {
+    return Error;
+  }
+  return Unknown;
 }
 
 std::string LogEvent::toString() {
@@ -51,21 +66,28 @@ std::string LogEvent::toString() {
 
   ss << "[" << LogLevelToString(m_level) << "]\t"
     << "[" << time_str << "]\t"
-    << "[" << m_pid << ":" << m_thread_id << "]\t"
-    << "[" << std::string(__FILE__) << ":" << __LINE__ << "]\t";
+    << "[" << m_pid << ":" << m_thread_id << "]\t";
   
   return ss.str();
 }
 
 void Logger::pushLog(const std::string& msg) {
+  ScopeMutex<Mutex> lock(m_mutex);
   m_buffer.push(msg);
+  lock.unlock();
 }
 
 void Logger::log() {
-  while (!m_buffer.empty()) {
-    std::string msg = m_buffer.front();
-    m_buffer.pop();
+  
+  ScopeMutex<Mutex> lock(m_mutex);
+  std::queue<std::string> tmp = m_buffer;
+  m_buffer.swap(tmp);
 
+  lock.unlock();
+
+  while (!tmp.empty()) {
+    std::string msg = tmp.front();
+    tmp.pop();
     printf(msg.c_str());
   }
 }

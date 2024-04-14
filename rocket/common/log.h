@@ -5,6 +5,9 @@
 #include <queue>
 #include <memory>
 
+#include "rocket/common/config.h"
+#include "rocket/common/mutex.h"
+
 namespace rocket_rpc {
 
 template<typename... Args>
@@ -22,12 +25,31 @@ std::string formatString(const char* str, Args&&... args) {
 }
 
 #define DEBUGLOG(str, ...) \
-  std::string msg = (new rocket_rpc::LogEvent(rocket_rpc::LogLevel::Debug))->toString() + rocket_rpc::formatString(str, ##__VA_ARGS__); \
-  msg += "\n";                                                                                                                          \
-  rocket_rpc::Logger::GetGlobalLogger()->pushLog(msg);                                                                                  \
-  rocket_rpc::Logger::GetGlobalLogger()->log();                                                                                          
+  if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Debug) \
+  { \
+    rocket_rpc::Logger::GetGlobalLogger()->pushLog((new rocket_rpc::LogEvent(rocket_rpc::LogLevel::Debug))->toString() \
+      + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
+    rocket_rpc::Logger::GetGlobalLogger()->log(); \
+  } \
+
+#define INFOLOG(str, ...) \
+  if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Info) \
+  { \
+    rocket_rpc::Logger::GetGlobalLogger()->pushLog((new rocket_rpc::LogEvent(rocket_rpc::LogLevel::Info))->toString() \
+      + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
+    rocket_rpc::Logger::GetGlobalLogger()->log(); \
+  } \
+
+#define ERRORLOG(str, ...) \
+  if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Error) \
+  { \
+    rocket_rpc::Logger::GetGlobalLogger()->pushLog((new rocket_rpc::LogEvent(rocket_rpc::LogLevel::Error))->toString() \
+      + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
+    rocket_rpc::Logger::GetGlobalLogger()->log(); \
+  }                                                                            
 
 enum LogLevel {
+  Unknown = 0,
   Debug = 1,
   Info = 2,
   Error = 3
@@ -37,19 +59,31 @@ class Logger {
   public:
     typedef std::shared_ptr<Logger> s_ptr;
 
+    Logger(LogLevel level) : m_set_level(level) {}
+
     void pushLog(const std::string& msg);
 
     void log();
+
+    LogLevel getLogLevel() const {
+      return m_set_level;
+    }
   
   public:
     static Logger* GetGlobalLogger();
+
+    static void InitGlobalLogger();
   
   private:
     LogLevel m_set_level;
     std::queue<std::string> m_buffer;
+
+    Mutex m_mutex;
 };
 
 std::string LogLevelToString(LogLevel level);
+
+LogLevel StringToLogLevel(const std::string& log_level);
 
 class LogEvent {
   public:
