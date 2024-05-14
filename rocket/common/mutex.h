@@ -1,5 +1,5 @@
-#ifndef ROCKET_COMMON_MUTEX_H
-#define ROCKET_COMMON_MUTEX_H
+#ifndef ROCKET_RPC_COMMON_MUTEX_H
+#define ROCKET_RPC_COMMON_MUTEX_H
 
 #include <pthread.h>
 
