@@ -106,3 +106,56 @@ Thread id
 Logger 日志器
 1.提供打印日志的方法
 2.设置日志输出的路径
+
+### 2.4 Reactor
+Reactor，又可以称为 EventLoop，它的本质是一个事件循环模型。服务器有一个 MainReactor 和多个 SubReactor。
+
+MainReactor 由主线程运行，作用如下：通过 epoll 监听 listenfd 的可读事件，当可读事件发生后，调用 accept 函数获取 clientfd，然后随机取出一个 SubReactor，将 cliednfd 的读写事件注册到这个 SubReactor 的 epoll 上即可。也就是说，MainReactor 只负责建立连接事件，不进行业务处理，也不关心已连接套接字的 IO 事件。
+
+SubReactor 通常有多个，每个 SubReactor 由一个线程来运行。SubReactor的 epoll 中注册了 clientfd 的读写事件，当发生 IO 事件后，需要进行业务处理。
+
+#### 2.4.1 TimerEvent 定时任务
+```
+1. 指定时间点 arrive_time
+2. interval, ms。
+3. is_repeated 
+4. is_cancled
+5. task
+
+
+cancel()
+cancelRepeated()
+```
+
+#### 2.4.2 Timer
+定时器，它是一个 TimerEvent 的集合。
+Timer 继承 FdEvent
+```
+
+addTimerEvent();
+deleteTimerEvent();
+
+onTimer();    // 当发生了 IO 事件之后，需要执行的方法
+
+
+resetArriveTime()
+
+multimap 存储 TimerEvent <key(arrivetime), TimerEvent>
+```
+
+#### 2.5 IO 线程
+创建一个IO 线程，他会帮我们执行：
+1. 创建一个新线程（pthread_create）
+2. 在新线程里面 创建一个 EventLoop，完成初始化
+3. 开启 loop
+```
+class {
+
+
+
+ pthread_t m_thread;
+ pid_t m_thread_id;
+ EventLoop event_loop;
+}
+
+```

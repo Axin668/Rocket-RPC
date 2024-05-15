@@ -9,6 +9,7 @@ namespace rocket_rpc {
 Timer::Timer() : FdEvent() {
 
   m_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+  DEBUGLOG("timer fd=%d", m_fd);
 
   // 把 fd 可读事件放到了 eventloop 上监听
   listen(FdEvent::IN_EVENT, std::bind(&Timer::onTimer, this));
@@ -58,6 +59,7 @@ void Timer::onTimer() {
     }
   }
 
+  // 确保定时器的有效, 即[维护距离它最近执行的任务的差值interval作为超时时间]
   resetArriveTime();
 
   // 执行任务
@@ -73,7 +75,7 @@ void Timer::resetArriveTime() {
   auto tmp = m_pending_events;
   lock.unlock();
 
-  if (tmp.empty()) {
+  if (tmp.size() == 0) {
     return;
   }
 
@@ -81,9 +83,10 @@ void Timer::resetArriveTime() {
 
   auto it = tmp.begin();
   int64_t interval = 0;
+  // 距离当前时间最近的任务还未超时
   if (it->second->getArriveTime() > now) {
     interval = it->second->getArriveTime() - now;
-  } else {
+  } else { // 已超时, 给一个默认最小间隔时间(100ms), 赶紧执行
     interval = 100;
   }
 
@@ -96,6 +99,7 @@ void Timer::resetArriveTime() {
   memset(&value, 0, sizeof(value));
   value.it_value = ts;
 
+  // 设置定时器下一次到期时间为value
   int rt = timerfd_settime(m_fd, 0, &value, NULL);
   if (rt != 0) {
     ERRORLOG("timerfd_settime error, errno=%d, error=%s", errno, strerror(errno));
@@ -111,6 +115,8 @@ void Timer::addTimerEvent(TimerEvent::s_ptr event) {
     is_reset_timerfd = true;
   } else {
     auto it = m_pending_events.begin();
+    // 如果把当前定时任务加入阻塞队列, 可能它会最先执行, 此时需要重设定时器(调整interval间隔)
+    // 因为定时器只会维护距离它最近的任务的超时时间
     if ((*it).second->getArriveTime() > event->getArriveTime()) {
       is_reset_timerfd = true;
     }

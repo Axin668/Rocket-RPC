@@ -11,6 +11,7 @@ namespace rocket_rpc {
 class Timer : public FdEvent {
 
   public:
+  
     Timer();
 
     ~Timer();

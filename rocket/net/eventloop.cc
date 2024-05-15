@@ -87,6 +87,7 @@ void EventLoop::initWakeUpFdEvent() {
     ERRORLOG("failed to create event loop, eventfd create error, error info[%d]", errno);
     exit(0);
   }
+  INFOLOG("wakeup fd = %d", m_wakeup_fd);
 
   m_wakeup_fd_event = new WakeUpFdEvent(m_wakeup_fd);
 
@@ -157,6 +158,7 @@ void EventLoop::wakeup() {
 
 void EventLoop::stop() {
   m_stop_flag = true;
+  wakeup();
 }
 
 void EventLoop::dealWakeup() {
@@ -185,11 +187,11 @@ void EventLoop::deleteEpollEvent(FdEvent* event) {
   }
 }
 
-void EventLoop::addTask(std::function<void()> cb, bool is_weak_up /*=false*/) {
+void EventLoop::addTask(std::function<void()> cb, bool is_wake_up /*=false*/) {
   ScopeMutex<Mutex> lock(m_mutex);
   m_pending_tasks.push(cb);
   lock.unlock();
-  if (is_weak_up) {
+  if (is_wake_up) {
     wakeup();
   }
 }
