@@ -5,9 +5,11 @@
 #include <set>
 #include <functional>
 #include <queue>
+#include <memory>
 #include "rocket/common/mutex.h"
 #include "rocket/net/fd_event.h"
 #include "rocket/net/wakeup_fd_event.h"
+#include "rocket/net/timer.h"
 
 namespace rocket_rpc {
 
@@ -31,11 +33,15 @@ class EventLoop {
     bool isInLoopThread();
 
     void addTask(std::function<void()> cb, bool is_wake_up = false);
+
+    void addTimerEvent(TimerEvent::s_ptr event);
   
   private:
     void dealWakeup();
 
     void initWakeUpFdEvent();
+
+    void initTimer();
 
   private:
     pid_t m_thread_id {0};
@@ -54,6 +60,7 @@ class EventLoop {
 
     Mutex m_mutex;    
 
+    Timer* m_timer {NULL};  
 };
 
 }

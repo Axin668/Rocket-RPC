@@ -54,6 +54,7 @@ EventLoop::EventLoop() {
   }
 
   initWakeUpFdEvent();
+  initTimer();
   INFOLOG("succ create event loop in thread %d", m_thread_id);
   t_current_eventloop = this;
 }
@@ -64,7 +65,21 @@ EventLoop::~EventLoop() {
     delete m_wakeup_fd_event;
     m_wakeup_fd_event = NULL;
   }
+  if (m_timer) {
+    delete m_timer;
+    m_timer = NULL;
+  }
 }
+
+void EventLoop::initTimer() {
+  m_timer = new Timer();
+  addEpollEvent(m_timer);
+}
+
+void EventLoop::addTimerEvent(TimerEvent::s_ptr event) {
+  m_timer->addTimerEvent(event);
+}
+
 
 void EventLoop::initWakeUpFdEvent() {
   m_wakeup_fd = eventfd(0, EFD_NONBLOCK);
@@ -92,6 +107,7 @@ void EventLoop::loop() {
     m_pending_tasks.swap(tmp_tasks);
     lock.unlock();
 
+    // 执行任务队列中的所有任务
     while (!tmp_tasks.empty()) {
       std::function<void()> cb = tmp_tasks.front();
       tmp_tasks.pop();
@@ -99,6 +115,10 @@ void EventLoop::loop() {
         cb();
       }
     }
+
+    // 如果有定时任务需要执行, 那么执行
+    // 1. 怎么判断一个定时任务需要执行? (now() > TimerEvent.arrive_time)
+    // 2. arrive_time 如何让 eventloop 监听
 
     int timeout = g_epoll_max_timeout;
     epoll_event result_events[g_epoll_max_events];
