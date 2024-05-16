@@ -150,9 +150,7 @@ multimap 存储 TimerEvent <key(arrivetime), TimerEvent>
 3. 开启 loop
 ```
 class {
-
-
-
+  
  pthread_t m_thread;
  pid_t m_thread_id;
  EventLoop event_loop;
