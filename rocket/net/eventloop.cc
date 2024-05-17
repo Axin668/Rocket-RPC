@@ -18,6 +18,7 @@
     if (rt == -1) { \
       ERRORLOG("failed epoll_ctl when add fd %d, errno=%d, error=%s", event->getFd(), errno, strerror(errno)); \
     } \
+    m_listen_fds.insert(event->getFd()); \
     DEBUGLOG("add event success, fd[%d]", event->getFd()); \
   
 #define DELETE_TO_EPOLL() \
@@ -31,6 +32,7 @@
     if (rt == -1) { \
       ERRORLOG("failed epoll_ctl when add fd %d, errno=%d, error=%s", event->getFd(), errno, strerror(errno)); \
     } \
+    m_listen_fds.erase(event->getFd()); \
     DEBUGLOG("delete event success, fd[%d]", event->getFd()); \
 
 namespace rocket_rpc {

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <fcntl.h>
 #include "rocket/net/fd_event.h"
 #include "rocket/common/log.h"
 
@@ -14,6 +15,16 @@ FdEvent::FdEvent() {
 
 FdEvent::~FdEvent() {
 
+}
+
+void FdEvent::setNonBlock() {
+
+  int flag = fcntl(m_fd, F_GETFL, 0);
+  if (flag & O_NONBLOCK) {
+    return;
+  }
+
+  fcntl(m_fd, F_SETFL, flag | O_NONBLOCK);
 }
 
 std::function<void()> FdEvent::handler(TriggerEvent event) {
@@ -33,6 +44,14 @@ void FdEvent::listen(TriggerEvent event_type, std::function<void()> callback) {
     m_write_callback = callback;
   }
   m_listen_events.data.ptr = this;
+}
+
+void FdEvent::cancel(TriggerEvent event_type) {
+  if (event_type == TriggerEvent::IN_EVENT) {
+    m_listen_events.events &= (~EPOLLIN);
+  } else {
+    m_listen_events.events &= (~EPOLLOUT);
+  }
 }
 
 }
