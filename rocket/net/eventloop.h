@@ -35,6 +35,9 @@ class EventLoop {
     void addTask(std::function<void()> cb, bool is_wake_up = false);
 
     void addTimerEvent(TimerEvent::s_ptr event);
+
+  public:
+    static EventLoop* GetCurrentEventLoop();
   
   private:
     void dealWakeup();

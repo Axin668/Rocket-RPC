@@ -45,6 +45,10 @@ TcpAcceptor::~TcpAcceptor() {
 
 }
 
+int TcpAcceptor::getListenFd() {
+  return m_listenfd;
+}
+
 int TcpAcceptor::accept() {
   if (m_family == AF_INET) {
     sockaddr_in client_addr;
@@ -56,10 +60,11 @@ int TcpAcceptor::accept() {
       ERRORLOG("listen error, errno=%d error=%s", errno, strerror(errno));
     }
     IPNetAddr peer_addr(client_addr);
-    INFOLOG("A client have accepted succ, peer addr [%s]", peer_addr.toString());
+    INFOLOG("A client have accepted succ, peer addr [%s]", peer_addr.toString().c_str());
     return client_fd;
   } else {
     // ... 其它协议
+    return -1;
   }
 }
 
