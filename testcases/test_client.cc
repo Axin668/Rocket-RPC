@@ -11,6 +11,8 @@
 #include "rocket/common/config.h"
 #include "rocket/net/tcp/tcp_client.h"
 #include "rocket/net/tcp/net_addr.h"
+#include "rocket/net/string_coder.h"
+#include "rocket/net/abstract_protocol.h"
 
 void test_connect() {
 
@@ -50,8 +52,14 @@ void test_tcp_client() {
 
   rocket_rpc::IPNetAddr::s_ptr addr = std::make_shared<rocket_rpc::IPNetAddr>("127.0.0.1", 12345);
   rocket_rpc::TcpClient client(addr);
-  client.connect([addr]() {
+  client.connect([addr, &client]() {
     DEBUGLOG("connect to [%s] success", addr->toString().c_str());
+    std::shared_ptr<rocket_rpc::StringProtocol> message = std::make_shared<rocket_rpc::StringProtocol>();
+    message->info = "hello rocket rpc && axin";
+    message->setReqId("123456");
+    client.writeMessage(message, [](rocket_rpc::AbstractProtocol::s_ptr msg_ptr) {
+      DEBUGLOG("send message success");
+    });
   });
 }
 
