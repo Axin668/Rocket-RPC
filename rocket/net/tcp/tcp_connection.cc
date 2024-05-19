@@ -5,8 +5,8 @@
 
 namespace rocket_rpc {
 
-TcpConnection::TcpConnection(IOThread* io_thread, int fd, int buffer_size, NetAddr::s_ptr peer_addr)
-  : m_io_thread(io_thread), m_peer_addr(peer_addr), m_state(NotConnected), m_fd(fd) {
+TcpConnection::TcpConnection(EventLoop* event_loop, int fd, int buffer_size, NetAddr::s_ptr peer_addr)
+  : m_event_loop(event_loop), m_peer_addr(peer_addr), m_state(NotConnected), m_fd(fd) {
 
   // 初始化连接的 buffer
   m_in_buffer = std::make_shared<TcpBuffer>(buffer_size);
@@ -18,11 +18,11 @@ TcpConnection::TcpConnection(IOThread* io_thread, int fd, int buffer_size, NetAd
   m_fd_event->listen(FdEvent::IN_EVENT, std::bind(&TcpConnection::onRead, this));
 
   // 将 fd event 添加至 子线程 eventloop 循环
-  io_thread->getEventLoop()->addEpollEvent(m_fd_event);
+  m_event_loop->addEpollEvent(m_fd_event);
 }
 
 TcpConnection::~TcpConnection() {
-  DEBUGLOG("~TcpConnection")
+  DEBUGLOG("TcpConnection::~TcpConnection")
 }
 
 void TcpConnection::onRead() {
@@ -92,7 +92,7 @@ void TcpConnection::execute() {
   m_out_buffer->writeToBuffer(msg.c_str(), msg.length());
 
   m_fd_event->listen(FdEvent::OUT_EVENT, std::bind(&TcpConnection::onWrite, this));
-  m_io_thread->getEventLoop()->addEpollEvent(m_fd_event);
+  m_event_loop->addEpollEvent(m_fd_event);
 
 }
 
@@ -128,7 +128,7 @@ void TcpConnection::onWrite() {
   }
   if (is_write_all) {
     m_fd_event->cancel(FdEvent::OUT_EVENT);
-    m_io_thread->getEventLoop()->addEpollEvent(m_fd_event); // 清空可写事件
+    m_event_loop->addEpollEvent(m_fd_event); // 清空可写事件
     // note: 不是 deleteEpollEvent, 否则读写事件都被删除
   }
 }
@@ -150,7 +150,7 @@ void TcpConnection::clear() {
   m_fd_event->cancel(FdEvent::IN_EVENT);
   m_fd_event->cancel(FdEvent::OUT_EVENT);
 
-  m_io_thread->getEventLoop()->deleteEpollEvent(m_fd_event);
+  m_event_loop->deleteEpollEvent(m_fd_event);
 
   m_state = Closed;
 }
@@ -167,6 +167,10 @@ void TcpConnection::shutdown() {
   // 发送 FIN 报文, 触发了四次挥手的第一个阶段
   // 当 fd 发生可读事件, 但是可读的数据为 0, 即 对端也发送了 FIN
   ::shutdown(m_fd, SHUT_RDWR);
+}
+
+void TcpConnection::setConnectionType(TcpConnectionType type) {
+  m_connection_type = type;
 }
 
 }

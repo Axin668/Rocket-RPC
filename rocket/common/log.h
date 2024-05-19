@@ -27,7 +27,7 @@ std::string formatString(const char* str, Args&&... args) {
 #define DEBUGLOG(str, ...) \
   if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Debug) \
   { \
-    rocket_rpc::Logger::GetGlobalLogger()->pushLog((new rocket_rpc::LogEvent(rocket_rpc::LogLevel::Debug))->toString() \
+    rocket_rpc::Logger::GetGlobalLogger()->pushLog(rocket_rpc::LogEvent(rocket_rpc::LogLevel::Debug).toString() \
       + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
     rocket_rpc::Logger::GetGlobalLogger()->log(); \
   } \
@@ -35,7 +35,7 @@ std::string formatString(const char* str, Args&&... args) {
 #define INFOLOG(str, ...) \
   if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Info) \
   { \
-    rocket_rpc::Logger::GetGlobalLogger()->pushLog((new rocket_rpc::LogEvent(rocket_rpc::LogLevel::Info))->toString() \
+    rocket_rpc::Logger::GetGlobalLogger()->pushLog(rocket_rpc::LogEvent(rocket_rpc::LogLevel::Info).toString() \
       + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
     rocket_rpc::Logger::GetGlobalLogger()->log(); \
   } \
@@ -43,7 +43,7 @@ std::string formatString(const char* str, Args&&... args) {
 #define ERRORLOG(str, ...) \
   if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Error) \
   { \
-    rocket_rpc::Logger::GetGlobalLogger()->pushLog((new rocket_rpc::LogEvent(rocket_rpc::LogLevel::Error))->toString() \
+    rocket_rpc::Logger::GetGlobalLogger()->pushLog(rocket_rpc::LogEvent(rocket_rpc::LogLevel::Error).toString() \
       + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
     rocket_rpc::Logger::GetGlobalLogger()->log(); \
   }                                                                            
