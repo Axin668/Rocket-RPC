@@ -84,22 +84,37 @@ void TcpConnection::onRead() {
 }
 
 void TcpConnection::execute() {
-  // 将 RPC 请求 执行业务逻辑, 获取 RPC 响应, 再把 RPC 响应发送回去
-  std::vector<char> tmp;
-  int size = m_in_buffer->readAble();
-  tmp.resize(size);
-  m_in_buffer->readFromBuffer(tmp, size);
+  if (m_connection_type == TcpConnectionByServer) { // 服务端读逻辑(主动)
+    // 将 RPC 请求 执行业务逻辑, 获取 RPC 响应, 再把 RPC 响应发送回去
+    std::vector<char> tmp;
+    int size = m_in_buffer->readAble();
+    tmp.resize(size);
+    m_in_buffer->readFromBuffer(tmp, size);
 
-  std::string msg;
-  for (size_t i = 0; i < tmp.size(); i ++ ) {
-    msg += tmp[i];
+    std::string msg;
+    for (size_t i = 0; i < tmp.size(); i ++ ) {
+      msg += tmp[i];
+    }
+    
+    INFOLOG("success get request[%s] from client[%s]", msg.c_str(), m_peer_addr->toString().c_str());
+
+    m_out_buffer->writeToBuffer(msg.c_str(), msg.length());
+
+    listenWrite();
+  } else { // 客户端读逻辑(被动)
+    // 从 buffer 里 decode 得到 message 对象, 并执行其回调
+    std::vector<AbstractProtocol::s_ptr> result;
+    m_coder->decode(result, m_in_buffer);
+
+    for (size_t i = 0; i < result.size(); i ++ ) { // 执行客户端连接所有的读回调, 执行后清空
+      std::string req_id = result[i]->getReqId();
+      auto it = m_read_dones.find(req_id);
+      if (it != m_read_dones.end()) {
+        it->second(result[i]);
+      }
+      // TODO 清空
+    }
   }
-  
-  INFOLOG("success get request[%s] from client[%s]", msg.c_str(), m_peer_addr->toString().c_str());
-
-  m_out_buffer->writeToBuffer(msg.c_str(), msg.length());
-
-  listenWrite();
 
 }
 
@@ -111,14 +126,14 @@ void TcpConnection::onWrite() {
     return;
   }
 
-  if (m_connection_type == TcpConnectionByClinet) {
+  if (m_connection_type == TcpConnectionByClinet) { // 客户端写逻辑(主动)
     // 1. 将 message encode 得到字节流
     // 2. 将数据写入到 buffer 里面, 然后全部发送
 
-    std::vector<AbstractProtocol*> messages;
+    std::vector<AbstractProtocol::s_ptr> messages;
     
     for (size_t i = 0; i < m_write_dones.size(); i ++ ) {
-      messages.push_back(m_write_dones[i].first.get());
+      messages.push_back(m_write_dones[i].first);
     }
 
     m_coder->encode(messages, m_out_buffer);
@@ -152,7 +167,7 @@ void TcpConnection::onWrite() {
     // note: 不是 deleteEpollEvent, 否则读写事件都被删除
   }
 
-  if (m_connection_type == TcpConnectionByClinet) {
+  if (m_connection_type == TcpConnectionByClinet) { // 执行客户端连接所有的写回调, 执行后清空
     for (size_t i = 0; i < m_write_dones.size(); i ++ ) {
       m_write_dones[i].second(m_write_dones[i].first);
     }
@@ -214,6 +229,10 @@ void TcpConnection::listenRead() {
 
 void TcpConnection::pushSendMessage(AbstractProtocol::s_ptr message, std::function<void(AbstractProtocol::s_ptr)> done) {
   m_write_dones.push_back(std::make_pair(message, done));
+}
+
+void TcpConnection::pushReadMessage(const std::string& req_id, std::function<void(AbstractProtocol::s_ptr)> done) {
+  m_read_dones.insert(std::make_pair(req_id, done));
 }
 
 }

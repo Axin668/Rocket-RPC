@@ -60,6 +60,16 @@ void test_tcp_client() {
     client.writeMessage(message, [](rocket_rpc::AbstractProtocol::s_ptr msg_ptr) {
       DEBUGLOG("send message success");
     });
+
+    client.readMessage("123456", [](rocket_rpc::AbstractProtocol::s_ptr msg_ptr) {
+      // 将父类的指针转化为子类的指针
+      std::shared_ptr<rocket_rpc::StringProtocol> message = std::dynamic_pointer_cast<rocket_rpc::StringProtocol>(msg_ptr);
+      DEBUGLOG("req_id[%s], get response %s", message->getReqId().c_str(), message->info.c_str());
+    });
+
+    client.writeMessage(message, [](rocket_rpc::AbstractProtocol::s_ptr msg_ptr) {
+      DEBUGLOG("send message 22222 success");
+    });
   });
 }
 
