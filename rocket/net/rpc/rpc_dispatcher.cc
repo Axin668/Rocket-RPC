@@ -4,6 +4,7 @@
 #include "rocket/net/rpc/rpc_dispatcher.h"
 #include "rocket/net/coder/tinypb_protocol.h"
 #include "rocket/common/log.h"
+#include "rocket/common/error_code.h"
 
 namespace rocket_rpc {
 
@@ -16,40 +17,54 @@ void RpcDispatcher::dispatch(AbstractProtocol::s_ptr request, AbstractProtocol::
   std::string service_name;
   std::string method_name;
 
+  resp_protocol->m_req_id = req_protocol->m_req_id;
+  resp_protocol->m_method_name = req_protocol->m_method_name;
+
   if (!parseServiceFullName(method_full_name, service_name, method_name)) {
-    // TODO 后面补充错误处理
+    setTinyPBError(resp_protocol, ERROR_PARSE_SERVICE_NAME, "parse service name error");
+    return;
   }
 
   auto it = m_service_map.find(service_name);
   if (it == m_service_map.end()) {
-    // TODO 后面错误处理
+    ERRORLOG("%s | service name[%s] not found", req_protocol->m_req_id.c_str(), service_name.c_str());
+    setTinyPBError(resp_protocol, ERROR_SERVICE_NOT_FOUND, "service not found");
+    return;
   }
 
   service_s_ptr service = (*it).second;
 
   const google::protobuf::MethodDescriptor* method = service->GetDescriptor()->FindMethodByName(method_name);
   if (method == NULL) {
-    // TODO 后面错误处理
+    ERRORLOG("%s | method name[%s] not found in service[%s]", req_protocol->m_req_id.c_str(), method_name.c_str(), service_name.c_str());
+    setTinyPBError(resp_protocol, ERROR_METHOD_NOT_FOUND, "method not found");
+    return;
   }
 
   google::protobuf::Message* req_msg = service->GetRequestPrototype(method).New();
-  // 反序列化, 将 pb_data 反序列化为 req_msg
 
+  // 反序列化, 将 pb_data 反序列化为 req_msg
   if (!req_msg->ParseFromString(req_protocol->m_pb_data)) {
-    // TODO 失败处理
+    ERRORLOG("%s | deserialize error", req_protocol->m_req_id.c_str());
+    setTinyPBError(resp_protocol, ERROR_FAILED_DESERIALIZE, "deserialize error");
+    return;
   }
 
-  INFOLOG("req_id[%s], get rpc request[%s]", req_protocol->m_req_id.c_str(), req_msg->ShortDebugString().c_str());
+  INFOLOG("%s | get rpc request[%s]", req_protocol->m_req_id.c_str(), req_msg->ShortDebugString().c_str());
 
   google::protobuf::Message* resp_msg = service->GetResponsePrototype(method).New();
 
   service->CallMethod(method, NULL, req_msg, resp_msg, NULL);
 
-  resp_protocol->m_req_id = req_protocol->m_req_id;
-  resp_protocol->m_method_name = req_protocol->m_method_name;
+  if (resp_msg->SerializeToString(&(resp_protocol->m_pb_data))) {
+    ERRORLOG("%s | serialize error, origin message [%s]", req_protocol->m_req_id.c_str(), req_msg->ShortDebugString().c_str());
+    setTinyPBError(resp_protocol, ERROR_FAILED_SERIALIZE, "serialize error");
+    return;
+  }
+
   resp_protocol->m_err_code = 0;
 
-  resp_msg->SerializeToString(&(resp_protocol->m_pb_data));
+  INFOLOG("%s | dispatch success, request[%s], response[%s]", req_protocol->m_req_id.c_str(), req_msg->ShortDebugString().c_str(), resp_msg->ShortDebugString().c_str());
 
 }
 
@@ -75,5 +90,12 @@ void RpcDispatcher::registerService(service_s_ptr service) {
   std::string service_name = service->GetDescriptor()->full_name();
   m_service_map[service_name] = service;
 }
+
+void RpcDispatcher::setTinyPBError(std::shared_ptr<TinyPBProtocol> msg, int32_t err_code, const std::string err_info) {
+  msg->m_err_code = err_code;
+  msg->m_err_info = err_info;
+  msg->m_err_info_len = err_info.length();
+}
+
 
 }

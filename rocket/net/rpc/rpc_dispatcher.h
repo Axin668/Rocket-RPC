@@ -17,6 +17,8 @@ class RpcDispatcher {
 
     void registerService(service_s_ptr service);
 
+    void setTinyPBError(std::shared_ptr<TinyPBProtocol> msg, int32_t err_code, const std::string err_info);
+
   private:
     bool parseServiceFullName(const std::string& full_name, std::string& service_name, std::string& method_name);
 
