@@ -157,3 +157,15 @@ class {
 }
 
 ```
+
+RPC 服务端流程
+```
+启动的时候就注册 OrderService 对象.
+
+1. 从 buffer 读取数据, 然后 decode 得到请求的 TinyPBProtocol 对象. 
+2. 然后从请求的 TinyPBProtocol 得到 method_name, 从 OrderService 对象里根据service.method_name 找到方法 func
+3. 找到对应的 request type 以及 response type
+4. 将请求体 TinyPBProtocol 里面的 pb_data 反序列化为 request type 的一个对象, 并声明一个空的 response type 对象
+5. 调用 func(request, response)
+6. 将 response 对象序列化为 pb_data, 再塞入到 TinyPBProtocol 结构体中. 之后 encode 并塞入到 buffer 里面, 监听可写事件发送回包
+```

@@ -8,6 +8,7 @@
 #include "rocket/net/tcp/tcp_buffer.h"
 #include "rocket/net/io_thread.h"
 #include "rocket/net/coder/abstract_coder.h"
+#include "rocket/net/rpc/rpc_dispatcher.h"
 
 namespace rocket_rpc {
 
@@ -85,6 +86,7 @@ class TcpConnection {
     // key 为 req_id
     std::map<std::string, std::function<void(AbstractProtocol::s_ptr)>> m_read_dones;
 
+    std::shared_ptr<RpcDispatcher> m_dispatcher;
 };
 
 
