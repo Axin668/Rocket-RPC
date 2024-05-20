@@ -7,6 +7,10 @@
 namespace rocket_rpc {
 
 struct TinyPBProtocol : public AbstractProtocol {
+  public:
+    TinyPBProtocol() {}
+
+    ~TinyPBProtocol() {}
 
   public:
     static char PB_START;
@@ -28,9 +32,6 @@ struct TinyPBProtocol : public AbstractProtocol {
     bool parse_success {false};
 
 };
-
-char TinyPBProtocol::PB_START = 0x02;
-char TinyPBProtocol::PB_END = 0x03;
 
 }
 
