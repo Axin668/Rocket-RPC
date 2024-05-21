@@ -11,6 +11,16 @@
 
 namespace rocket_rpc {
 
+static RpcDispatcher* g_rpc_dispatcher = NULL;
+
+RpcDispatcher* RpcDispatcher::GetRpcDispatcher() {
+  if (g_rpc_dispatcher != NULL) {
+    return g_rpc_dispatcher;
+  }
+  g_rpc_dispatcher = new RpcDispatcher();
+  return g_rpc_dispatcher;
+}
+
 void RpcDispatcher::dispatch(AbstractProtocol::s_ptr request, AbstractProtocol::s_ptr response, TcpConnection* connection) {
 
   std::shared_ptr<TinyPBProtocol> req_protocol = std::dynamic_pointer_cast<TinyPBProtocol>(request);
@@ -68,7 +78,7 @@ void RpcDispatcher::dispatch(AbstractProtocol::s_ptr request, AbstractProtocol::
 
   service->CallMethod(method, &rpcController, req_msg, resp_msg, NULL);
 
-  if (resp_msg->SerializeToString(&(resp_protocol->m_pb_data))) {
+  if (!resp_msg->SerializeToString(&(resp_protocol->m_pb_data))) {
     ERRORLOG("%s | serialize error, origin message [%s]", req_protocol->m_req_id.c_str(), req_msg->ShortDebugString().c_str());
     setTinyPBError(resp_protocol, ERROR_FAILED_SERIALIZE, "serialize error");
 
