@@ -2,13 +2,16 @@
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/message.h>
 #include "rocket/net/rpc/rpc_dispatcher.h"
+#include "rocket/net/rpc/rpc_controller.h"
 #include "rocket/net/coder/tinypb_protocol.h"
+#include "rocket/net/tcp/net_addr.h"
+#include "rocket/net/tcp/tcp_connection.h"
 #include "rocket/common/log.h"
 #include "rocket/common/error_code.h"
 
 namespace rocket_rpc {
 
-void RpcDispatcher::dispatch(AbstractProtocol::s_ptr request, AbstractProtocol::s_ptr response) {
+void RpcDispatcher::dispatch(AbstractProtocol::s_ptr request, AbstractProtocol::s_ptr response, TcpConnection* connection) {
 
   std::shared_ptr<TinyPBProtocol> req_protocol = std::dynamic_pointer_cast<TinyPBProtocol>(request);
   std::shared_ptr<TinyPBProtocol> resp_protocol = std::dynamic_pointer_cast<TinyPBProtocol>(response);
@@ -47,6 +50,10 @@ void RpcDispatcher::dispatch(AbstractProtocol::s_ptr request, AbstractProtocol::
   if (!req_msg->ParseFromString(req_protocol->m_pb_data)) {
     ERRORLOG("%s | deserialize error", req_protocol->m_req_id.c_str());
     setTinyPBError(resp_protocol, ERROR_FAILED_DESERIALIZE, "deserialize error");
+    if (req_msg != NULL) {
+      delete req_msg;
+      req_msg = NULL;
+    }
     return;
   }
 
@@ -54,18 +61,35 @@ void RpcDispatcher::dispatch(AbstractProtocol::s_ptr request, AbstractProtocol::
 
   google::protobuf::Message* resp_msg = service->GetResponsePrototype(method).New();
 
-  service->CallMethod(method, NULL, req_msg, resp_msg, NULL);
+  RpcController rpcController;
+  rpcController.SetLocalAddr(connection->getLocalAddr());
+  rpcController.SetPeerAddr(connection->getPeerAddr());
+  rpcController.SetReqId(req_protocol->m_req_id);
+
+  service->CallMethod(method, &rpcController, req_msg, resp_msg, NULL);
 
   if (resp_msg->SerializeToString(&(resp_protocol->m_pb_data))) {
     ERRORLOG("%s | serialize error, origin message [%s]", req_protocol->m_req_id.c_str(), req_msg->ShortDebugString().c_str());
     setTinyPBError(resp_protocol, ERROR_FAILED_SERIALIZE, "serialize error");
+
+    if (req_msg != NULL) {
+      delete req_msg;
+      req_msg = NULL;
+    }
+    if (resp_msg != NULL) {
+      delete resp_msg;
+      resp_msg = NULL;
+    }
     return;
   }
 
   resp_protocol->m_err_code = 0;
 
   INFOLOG("%s | dispatch success, request[%s], response[%s]", req_protocol->m_req_id.c_str(), req_msg->ShortDebugString().c_str(), resp_msg->ShortDebugString().c_str());
-
+  delete req_msg;
+  delete resp_msg;
+  req_msg = NULL;
+  resp_msg = NULL;
 }
 
 bool RpcDispatcher::parseServiceFullName(const std::string& full_name, std::string& service_name, std::string& method_name) {

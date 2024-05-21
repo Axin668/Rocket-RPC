@@ -13,11 +13,11 @@ void RpcController::Reset() {
   m_timeout = 1000;  // ms
 }
 
-bool RpcController::Failed() {
+bool RpcController::Failed() const {
   return m_is_failed;
 }
 
-std::string RpcController::ErrorText() {
+std::string RpcController::ErrorText() const {
   return m_error_info;
 }
 
@@ -29,7 +29,7 @@ void RpcController::SetFailed(const std::string& reason) {
   m_error_info = reason;
 }
 
-bool RpcController::IsCanceled() {
+bool RpcController::IsCanceled() const {
   return m_is_canceled;
 }
 

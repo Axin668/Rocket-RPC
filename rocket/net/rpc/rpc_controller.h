@@ -17,15 +17,15 @@ class RpcController : public google::protobuf::RpcController {
 
     void Reset();
 
-    bool Failed();
+    bool Failed() const;
 
-    std::string ErrorText();
+    std::string ErrorText() const;
 
     void StartCancel();
 
     void SetFailed(const std::string& reason);
 
-    bool IsCanceled();
+    bool IsCanceled() const;
 
     void NotifyOnCancel(google::protobuf::Closure* callback);
 
