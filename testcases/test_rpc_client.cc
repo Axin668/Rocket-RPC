@@ -23,7 +23,7 @@ void test_tcp_client() {
   client.connect([addr, &client]() {
     DEBUGLOG("connect to [%s] success", addr->toString().c_str());
     std::shared_ptr<rocket_rpc::TinyPBProtocol> message = std::make_shared<rocket_rpc::TinyPBProtocol>();
-    message->m_req_id = "99999888888";
+    message->m_msg_id = "99999888888";
     message->m_pb_data = "test pb data";
 
     makeOrderRequest request;
@@ -44,7 +44,7 @@ void test_tcp_client() {
     client.readMessage("99999888888", [](rocket_rpc::AbstractProtocol::s_ptr msg_ptr) {
       // 将父类的指针转化为子类的指针
       std::shared_ptr<rocket_rpc::TinyPBProtocol> message = std::dynamic_pointer_cast<rocket_rpc::TinyPBProtocol>(msg_ptr);
-      DEBUGLOG("req_id[%s], get response %s", message->m_req_id.c_str(), message->m_pb_data.c_str());
+      DEBUGLOG("msg_id[%s], get response %s", message->m_msg_id.c_str(), message->m_pb_data.c_str());
       makeOrderResponse response;
 
       if (!response.ParseFromString(message->m_pb_data)) {
