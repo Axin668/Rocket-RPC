@@ -62,30 +62,48 @@ void test_tcp_client() {
 }
 
 void test_rpc_channel() {
-  rocket_rpc::IPNetAddr::s_ptr addr = std::make_shared<rocket_rpc::IPNetAddr>("127.0.0.1", 12345);
-  std::shared_ptr<rocket_rpc::RpcChannel> channel = std::make_shared<rocket_rpc::RpcChannel>(addr);
+  // 创建 channel 
+  // rocket_rpc::IPNetAddr::s_ptr addr = std::make_shared<rocket_rpc::IPNetAddr>("127.0.0.1", 12345);
+  // std::shared_ptr<rocket_rpc::RpcChannel> channel = std::make_shared<rocket_rpc::RpcChannel>(addr);
+  NEWRPCCHANNEL("127.0.0.1:12345", channel);
 
-  std::shared_ptr<makeOrderRequest> request = std::make_shared<makeOrderRequest>();
+  // 创建请求和响应
+  // std::shared_ptr<makeOrderRequest> request = std::make_shared<makeOrderRequest>();
+  // std::shared_ptr<makeOrderResponse> response = std::make_shared<makeOrderResponse>();
+  NEWMESSAGE(makeOrderRequest, request);
+  NEWMESSAGE(makeOrderResponse, response);
   request->set_price(100);
   request->set_goods("apple");
 
-  std::shared_ptr<makeOrderResponse> response = std::make_shared<makeOrderResponse>();
-
-  std::shared_ptr<rocket_rpc::RpcController> controller = std::make_shared<rocket_rpc::RpcController>();
+  // 创建 controller
+  // std::shared_ptr<rocket_rpc::RpcController> controller = std::make_shared<rocket_rpc::RpcController>();
+  NEWRPCCONTROLLER(controller);
   controller->SetMsgId("999999888888");
+  controller->SetTimeout(10000);
 
-  std::shared_ptr<rocket_rpc::RpcClousre> closure = std::make_shared<rocket_rpc::RpcClousre>([request, response, channel]() mutable {
-    INFOLOG("call rpc success request[%s], resposne[%s]", request->ShortDebugString().c_str(), response->ShortDebugString().c_str());
+  // 创建回调函数, 业务逻辑
+  std::shared_ptr<rocket_rpc::RpcClousre> closure = std::make_shared<rocket_rpc::RpcClousre>([request, response, channel, controller]() mutable {
+    if (controller->GetErrorCode() == 0) {
+      INFOLOG("call rpc success, request[%s], resposne[%s]", request->ShortDebugString().c_str(), response->ShortDebugString().c_str());
+      // 业务逻辑
+      if (response->order_id() == "xxx") {
+        // xx
+      }
+    } else {
+      ERRORLOG("call rpc failed, request[%s], error code[%d], error info[%s]", 
+        request->ShortDebugString().c_str(), 
+        controller->GetErrorCode(), controller->GetErrorInfo().c_str());
+    }
     INFOLOG("now exit eventloop");
     channel->getTcpClient()->stop();
     channel.reset();
   });
 
-  channel->Init(controller, request, response, closure);
-
-  Order_Stub stub(channel.get());
-
-  stub.makeOrder(controller.get(), request.get(), response.get(), closure.get());
+  // 调用 RPC 请求
+  // channel->Init(controller, request, response, closure);
+  // Order_Stub stub(channel.get());
+  // stub.makeOrder(controller.get(), request.get(), response.get(), closure.get());
+  CALLRPC("127.0.0.1:12345", makeOrder, controller, request, response, closure);
 }
 
 int main() {

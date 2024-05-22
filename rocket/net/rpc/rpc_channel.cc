@@ -10,6 +10,7 @@
 #include "rocket/common/log.h"
 #include "rocket/common/msg_id_util.h"
 #include "rocket/common/error_code.h"
+#include "rocket/net/timer_event.h"
 
 namespace rocket_rpc {
 
@@ -70,6 +71,19 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
   }
 
   s_ptr channel = shared_from_this();  // 只可用智能指针构造, 不用裸指针 or 栈对象
+
+  m_timer_event = std::make_shared<TimerEvent>(my_controller->GetTimeout(), false, [my_controller, channel]() mutable {
+    my_controller->StartCancel();
+    my_controller->SetError(ERROR_RPC_CALL_TIMEOUT, "rpc call timeout " + std::to_string(my_controller->GetTimeout()));
+
+    if (channel->getClosure()) {
+      channel->getClosure()->Run();
+    }
+    channel.reset();
+  });
+
+  m_client->addTimerEvent(m_timer_event);  // 为 rpc 调用添加定时任务
+
   m_client->connect([req_protocol, channel]() mutable {
 
     RpcController* my_controller = dynamic_cast<RpcController*>(channel->getController());
@@ -93,6 +107,9 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
           resp_protocol->m_msg_id.c_str(), resp_protocol->m_method_name.c_str(),
           channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
 
+        // 当成功读取到回包后, 取消定时任务
+        channel->getTimerEvent()->setCanceled(true);
+
         if (!(channel->getResposne()->ParseFromString(resp_protocol->m_pb_data))) {
           ERRORLOG("%s | serialize error, peer addr[%s], local addr[%s]", 
             resp_protocol->m_msg_id.c_str(),
@@ -114,7 +131,7 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
           resp_protocol->m_msg_id.c_str(), resp_protocol->m_method_name.c_str(), 
           channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
 
-        if (channel->getClosure()) {  // 执行 rpc 回调函数
+        if (!my_controller->IsCanceled() && channel->getClosure()) {  // 如果 rpc 未取消且有回调函数, 就执行 rpc 回调函数
           channel->getClosure()->Run();
         }
 
@@ -143,6 +160,10 @@ google::protobuf::Closure* RpcChannel::getClosure() {
 
 TcpClient* RpcChannel::getTcpClient() {
   return m_client.get();
+}
+
+TimerEvent::s_ptr RpcChannel::getTimerEvent() {
+  return m_timer_event;
 }
 
 }
