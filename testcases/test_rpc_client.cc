@@ -75,7 +75,7 @@ void test_rpc_channel() {
   controller->SetMsgId("999999888888");
 
   std::shared_ptr<rocket_rpc::RpcClousre> closure = std::make_shared<rocket_rpc::RpcClousre>([request, response, channel]() mutable {
-    INFOLOG("call rpc successm request[%s], resposne[%s]", request->ShortDebugString().c_str(), response->ShortDebugString().c_str());
+    INFOLOG("call rpc success request[%s], resposne[%s]", request->ShortDebugString().c_str(), response->ShortDebugString().c_str());
     INFOLOG("now exit eventloop");
     channel->getTcpClient()->stop();
     channel.reset();

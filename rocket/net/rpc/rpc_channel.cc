@@ -71,29 +71,48 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
 
   s_ptr channel = shared_from_this();  // 只可用智能指针构造, 不用裸指针 or 栈对象
   m_client->connect([req_protocol, channel]() mutable {
-    channel->getTcpClient()->writeMessage(req_protocol, [req_protocol, channel](AbstractProtocol::s_ptr) mutable {
-      INFOLOG("%s | send request success. method_name[%s]", 
-        req_protocol->m_msg_id.c_str(), req_protocol->m_method_name.c_str());
-        
-      channel->getTcpClient()->readMessage(req_protocol->m_msg_id, [channel](AbstractProtocol::s_ptr msg) mutable {
-        std::shared_ptr<TinyPBProtocol> resp_protocol = std::dynamic_pointer_cast<TinyPBProtocol>(msg);
-        INFOLOG("%s | success get rpc response, call method name[%s]", 
-          resp_protocol->m_msg_id.c_str(), resp_protocol->m_method_name.c_str());
 
-        RpcController* my_controller = dynamic_cast<RpcController*>(channel->getController());
+    RpcController* my_controller = dynamic_cast<RpcController*>(channel->getController());
+
+    if (channel->getTcpClient()->getConnectErrorCode() != 0) {
+      my_controller->SetError(channel->getTcpClient()->getConnectErrorCode(), channel->getTcpClient()->getConnectErrorInfo());
+      ERRORLOG("%s | connect error, error code[%d], error info[%s], peer addr[%s]", 
+        req_protocol->m_msg_id.c_str(), my_controller->GetErrorCode(), 
+        my_controller->GetErrorInfo().c_str(), channel->getTcpClient()->getPeerAddr()->toString().c_str());
+      return;
+    }
+
+    channel->getTcpClient()->writeMessage(req_protocol, [req_protocol, channel, my_controller](AbstractProtocol::s_ptr) mutable {
+      INFOLOG("%s | send request success. method_name[%s], peer addr[%s], local addr[%s]", 
+        req_protocol->m_msg_id.c_str(), req_protocol->m_method_name.c_str(),
+        channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
+        
+      channel->getTcpClient()->readMessage(req_protocol->m_msg_id, [channel, my_controller](AbstractProtocol::s_ptr msg) mutable {
+        std::shared_ptr<TinyPBProtocol> resp_protocol = std::dynamic_pointer_cast<TinyPBProtocol>(msg);
+        INFOLOG("%s | success get rpc response, call method name[%s], peer addr[%s], local addr[%s]", 
+          resp_protocol->m_msg_id.c_str(), resp_protocol->m_method_name.c_str(),
+          channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
+
         if (!(channel->getResposne()->ParseFromString(resp_protocol->m_pb_data))) {
-          ERRORLOG("%s | serialize error", resp_protocol->m_msg_id.c_str());
+          ERRORLOG("%s | serialize error, peer addr[%s], local addr[%s]", 
+            resp_protocol->m_msg_id.c_str(),
+            channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
           my_controller->SetError(ERROR_FAILED_SERIALIZE, "serialize error");
           return;
         }
         
         if (resp_protocol->m_err_code != 0) {
-          ERRORLOG("%s | call rpc method[%s] failed, error code[%d], error info [%s]", 
+          ERRORLOG("%s | call rpc method[%s] failed, error code[%d], error info [%s], peer addr[%s], local addr[%s]", 
             resp_protocol->m_msg_id.c_str(), resp_protocol->m_method_name, 
-            resp_protocol->m_err_code, resp_protocol->m_err_info);
+            resp_protocol->m_err_code, resp_protocol->m_err_info, 
+            channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
           my_controller->SetError(resp_protocol->m_err_code, resp_protocol->m_err_info);
           return;
         }
+
+        INFOLOG("%s | call rpc success, call method name[%s], peer addr[%s], local addr[%s]",
+          resp_protocol->m_msg_id.c_str(), resp_protocol->m_method_name.c_str(), 
+          channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
 
         if (channel->getClosure()) {  // 执行 rpc 回调函数
           channel->getClosure()->Run();

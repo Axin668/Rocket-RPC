@@ -5,6 +5,8 @@
 #include "rocket/net/tcp/tcp_client.h"
 #include "rocket/net/eventloop.h"
 #include "rocket/net/fd_event_group.h"
+#include "rocket/net/tcp/net_addr.h"
+#include "rocket/common/error_code.h"
 
 namespace rocket_rpc {
 
@@ -37,34 +39,76 @@ void TcpClient::connect(std::function<void()> done) {
   int rt = ::connect(m_fd, m_peer_addr->getSockAddr(), m_peer_addr->getSockLen());
   if (rt == 0) {
     DEBUGLOG("connect [%s] success", m_peer_addr->toString().c_str());
-    // m_connection->setState(Connected);
+    m_connection->setState(Connected);
+    initLocalAddr();  // 如果连接成功, 就设置本机地址
     if (done) {
       done();
     }
   } else if (rt == -1) {
     if (errno == EINPROGRESS) {
       // epoll 监听可写事件, 然后判断错误码
-      m_fd_event->listen(FdEvent::OUT_EVENT, [this, done]() {
-        int error = 0;
-        socklen_t error_len = sizeof(error);
-        getsockopt(m_fd, SOL_SOCKET, SO_ERROR, &error, &error_len);
-        bool is_connect_succ = false;
-        if (error == 0) {
-          DEBUGLOG("connect [%s] success", m_peer_addr->toString().c_str());
-          is_connect_succ = true;
-          m_connection->setState(Connected);
-        } else {
+      m_fd_event->listen(FdEvent::OUT_EVENT, 
+        [this, done]() {
+          // 方法一: 可以再连接一次进行判断(连接已建立 or 连接成功)
+          int rt = ::connect(m_fd, m_peer_addr->getSockAddr(), m_peer_addr->getSockLen());
+          if ((rt < 0 && errno == EISCONN) || (rt == 0)) {
+            DEBUGLOG("connect [%s] success", m_peer_addr->toString().c_str());
+            initLocalAddr();
+            m_connection->setState(Connected);
+          } else {
+            if (errno == ECONNREFUSED) {
+              m_connect_error_code = ERROR_PEER_CLOSED;
+              m_connect_error_info = "connect refused, sys error = " + std::string(strerror(errno));
+            } else {
+              m_connect_error_code = ERROR_FAILED_CONNECT;
+              m_connect_error_info = "connect error, sys error = " + std::string(strerror(errno));
+            }
+            ERRORLOG("connect error, errno = %d, error=%s", errno, strerror(errno));
+            close(m_fd);
+            m_fd = socket(m_peer_addr->getFamily(), SOCK_STREAM, 0);
+          }
+
+
+          // 方法二: 通过 getsockopt 查看错误信息
+          // int error = 0;
+          // socklen_t error_len = sizeof(error);
+          // getsockopt(m_fd, SOL_SOCKET, SO_ERROR, &error, &error_len);
+          // if (error == 0) {
+          //   DEBUGLOG("connect [%s] success", m_peer_addr->toString().c_str());
+          //   initLocalAddr();  // 如果连接成功, 就设置本机地址
+          //   m_connection->setState(Connected);
+          // } else {
+          //   m_connect_error_code = ERROR_FAILED_CONNECT;
+          //   m_connect_error_info = "connect error, sys error = " + std::string(strerror(errno));
+          //   ERRORLOG("connect error, errno=%d, error=%s", errno, strerror(errno));
+          // }
+
+
+          // 只有一次机会
+          // 连接完之后需要去掉可读可写事件的监听, 不然会一直触发
+          m_event_loop->deleteEpollEvent(m_fd_event);
+          DEBUGLOG("now begin to done");
+
+          if (done) { // 如果连接成功, 执行连接的回调
+            done();
+          }
+        },
+        [this, done]() {  // 错误回调函数(可选)
+
+          // loop 已经删掉了, 无需再删
+          // m_fd_event->cancel(FdEvent::ERROR_EVENT);
+          // m_event_loop->addEpollEvent(m_fd_event);
+
+          if(errno == ECONNREFUSED) {
+            m_connect_error_code = ERROR_FAILED_CONNECT;
+            m_connect_error_info = "connect refused, sys error = " + std::string(strerror(errno));
+          } else {
+            m_connect_error_code = ERROR_FAILED_CONNECT;
+            m_connect_error_info = "connect unknown error, sys error = " + std::string(strerror(errno));
+          }
           ERRORLOG("connect error, errno=%d, error=%s", errno, strerror(errno));
         }
-        // 只有一次机会
-        // 连接完之后需要去掉可写事件的监听, 不然会一直触发
-        m_fd_event->cancel(FdEvent::OUT_EVENT);
-        m_event_loop->addEpollEvent(m_fd_event);
-
-        if (is_connect_succ && done) { // 如果连接成功, 执行连接的回调
-          done();
-        }
-      });
+      );
       m_event_loop->addEpollEvent(m_fd_event);
 
       if (!m_event_loop->isLooping()) {
@@ -73,6 +117,11 @@ void TcpClient::connect(std::function<void()> done) {
 
     } else {
       ERRORLOG("connect error, errno=%d, error=%s", errno, strerror(errno));
+      m_connect_error_code = ERROR_FAILED_CONNECT;
+      m_connect_error_info = "connect error, sys error = " + std::string(strerror(errno));
+      if (done) {
+        done();
+      }
     }
   }
 
@@ -101,6 +150,36 @@ void TcpClient::readMessage(const std::string& msg_id, std::function<void(Abstra
   // 2. 从 buffer 里 decode 得到 message 对象, 判断是否 msg_id 相等, 相等则读出, 并执行其回调
   m_connection->pushReadMessage(msg_id, done);
   m_connection->listenRead();
+}
+
+int TcpClient::getConnectErrorCode() {
+  return m_connect_error_code;
+}
+
+std::string TcpClient::getConnectErrorInfo() {
+  return m_connect_error_info;
+}
+
+NetAddr::s_ptr TcpClient::getPeerAddr() {
+  return m_peer_addr;
+}
+
+NetAddr::s_ptr TcpClient::getLocalAddr() {
+  return m_local_addr;
+}
+
+void TcpClient::initLocalAddr() {
+  sockaddr_in local_addr;
+  socklen_t len = sizeof(local_addr);
+
+  int ret = getsockname(m_fd, reinterpret_cast<sockaddr*>(&local_addr), &len);
+  if (ret != 0) {
+    ERRORLOG("initLocalAddr error, getsockname error, errno=%d, error=%s", errno, strerror(errno));
+    return;
+  }
+
+  m_local_addr = std::make_shared<IPNetAddr>(local_addr);
+
 }
 
 }
