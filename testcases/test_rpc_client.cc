@@ -14,6 +14,11 @@
 #include "rocket/net/coder/string_coder.h"
 #include "rocket/net/coder/abstract_protocol.h"
 #include "rocket/net/coder/tinypb_protocol.h"
+#include "rocket/net/rpc/rpc_dispatcher.h"
+#include "rocket/net/rpc/rpc_controller.h"
+#include "rocket/net/rpc/rpc_channel.h"
+#include "rocket/net/rpc/rpc_closure.h"
+
 #include "order.pb.h"
 
 void test_tcp_client() {
@@ -56,12 +61,43 @@ void test_tcp_client() {
   });
 }
 
+void test_rpc_channel() {
+  rocket_rpc::IPNetAddr::s_ptr addr = std::make_shared<rocket_rpc::IPNetAddr>("127.0.0.1", 12345);
+  std::shared_ptr<rocket_rpc::RpcChannel> channel = std::make_shared<rocket_rpc::RpcChannel>(addr);
+
+  std::shared_ptr<makeOrderRequest> request = std::make_shared<makeOrderRequest>();
+  request->set_price(100);
+  request->set_goods("apple");
+
+  std::shared_ptr<makeOrderResponse> response = std::make_shared<makeOrderResponse>();
+
+  std::shared_ptr<rocket_rpc::RpcController> controller = std::make_shared<rocket_rpc::RpcController>();
+  controller->SetMsgId("999999888888");
+
+  std::shared_ptr<rocket_rpc::RpcClousre> closure = std::make_shared<rocket_rpc::RpcClousre>([request, response, channel]() mutable {
+    INFOLOG("call rpc successm request[%s], resposne[%s]", request->ShortDebugString().c_str(), response->ShortDebugString().c_str());
+    INFOLOG("now exit eventloop");
+    channel->getTcpClient()->stop();
+    channel.reset();
+  });
+
+  channel->Init(controller, request, response, closure);
+
+  Order_Stub stub(channel.get());
+
+  stub.makeOrder(controller.get(), request.get(), response.get(), closure.get());
+}
+
 int main() {
   rocket_rpc::Config::SetGlobalConfig("../conf/rocket_rpc.xml");
 
   rocket_rpc::Logger::InitGlobalLogger();
 
-  test_tcp_client();
+  // test_tcp_client();
+
+  test_rpc_channel();
+
+  INFOLOG("test_rpc_channel end");
 
   return 0;
 }
