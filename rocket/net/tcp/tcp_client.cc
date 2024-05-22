@@ -92,21 +92,6 @@ void TcpClient::connect(std::function<void()> done) {
           if (done) { // 如果连接成功, 执行连接的回调
             done();
           }
-        },
-        [this, done]() {  // 错误回调函数(可选)
-
-          // loop 已经删掉了, 无需再删
-          // m_fd_event->cancel(FdEvent::ERROR_EVENT);
-          // m_event_loop->addEpollEvent(m_fd_event);
-
-          if(errno == ECONNREFUSED) {
-            m_connect_error_code = ERROR_FAILED_CONNECT;
-            m_connect_error_info = "connect refused, sys error = " + std::string(strerror(errno));
-          } else {
-            m_connect_error_code = ERROR_FAILED_CONNECT;
-            m_connect_error_info = "connect unknown error, sys error = " + std::string(strerror(errno));
-          }
-          ERRORLOG("connect error, errno=%d, error=%s", errno, strerror(errno));
         }
       );
       m_event_loop->addEpollEvent(m_fd_event);
