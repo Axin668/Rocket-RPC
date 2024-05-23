@@ -79,6 +79,7 @@ void EventLoop::initTimer() {
 }
 
 void EventLoop::addTimerEvent(TimerEvent::s_ptr event) {
+  printf("开始添加定时事件\n");
   m_timer->addTimerEvent(event);
 }
 
