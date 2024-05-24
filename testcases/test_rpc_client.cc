@@ -107,9 +107,10 @@ void test_rpc_channel() {
 }
 
 int main() {
-  rocket_rpc::Config::SetGlobalConfig("../conf/rocket_rpc_client.xml");
+  rocket_rpc::Config::SetGlobalConfig(NULL);
 
-  rocket_rpc::Logger::InitGlobalLogger();
+  // 设置为1表示需要读取配置文件(一般为server端), 设置为0表示不需要读取配置文件(一般为client端)
+  rocket_rpc::Logger::InitGlobalLogger(0);
 
   // test_tcp_client();
 

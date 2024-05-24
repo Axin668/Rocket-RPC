@@ -27,26 +27,27 @@ class OrderImpl : public Order {
     }
 };
 
-void test_tcp_server() {
+int main(int argc, char* argv[]) {
 
-  rocket_rpc::IPNetAddr::s_ptr addr = std::make_shared<rocket_rpc::IPNetAddr>("127.0.0.1", 12346);
+  if (argc != 2) {
+    printf("Start test_rpc_server error, argc not 2\n");
+    printf("Start like this: \n");
+    printf("/test_rpc_server ../conf/rocket_rpc.xml \n");
+    return 0;
+  }
 
-  DEBUGLOG("create addr %s", addr->toString().c_str());
-
-  rocket_rpc::TcpServer tcp_server(addr);
-
-  tcp_server.start();
-}
-
-int main() {
-  rocket_rpc::Config::SetGlobalConfig("../conf/rocket_rpc.xml");
+  rocket_rpc::Config::SetGlobalConfig(argv[1]);
 
   rocket_rpc::Logger::InitGlobalLogger();
 
   std::shared_ptr<OrderImpl> service = std::make_shared<OrderImpl>();
   rocket_rpc::RpcDispatcher::GetRpcDispatcher()->registerService(service);
 
-  test_tcp_server();
+  rocket_rpc::IPNetAddr::s_ptr addr = std::make_shared<rocket_rpc::IPNetAddr>("127.0.0.1", rocket_rpc::Config::GetGlobalConfig()->m_port);
+
+  rocket_rpc::TcpServer tcp_server(addr);
+
+  tcp_server.start();
 
   return 0;
 }
