@@ -46,7 +46,29 @@ std::string formatString(const char* str, Args&&... args) {
   { \
     rocket_rpc::Logger::GetGlobalLogger()->pushLog(rocket_rpc::LogEvent(rocket_rpc::LogLevel::Error).toString() \
       + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
-  }                                                                     
+  } \
+
+#define APPDEBUGLOG(str, ...) \
+  if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() && rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Debug) \
+  { \
+    rocket_rpc::Logger::GetGlobalLogger()->pushAppLog(rocket_rpc::LogEvent(rocket_rpc::LogLevel::Debug).toString() \
+      + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
+  } \
+
+#define APPINFOLOG(str, ...) \
+  if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Info) \
+  { \
+    rocket_rpc::Logger::GetGlobalLogger()->pushAppLog(rocket_rpc::LogEvent(rocket_rpc::LogLevel::Info).toString() \
+      + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
+  } \
+
+#define APPERRORLOG(str, ...) \
+  if (rocket_rpc::Logger::GetGlobalLogger()->getLogLevel() <= rocket_rpc::Error) \
+  { \
+    rocket_rpc::Logger::GetGlobalLogger()->pushAppLog(rocket_rpc::LogEvent(rocket_rpc::LogLevel::Error).toString() \
+      + "[" + std::string(__FILE__) + ":" + std::to_string(__LINE__) + "]\t" + rocket_rpc::formatString(str, ##__VA_ARGS__) + "\n"); \
+  }    
+
 
 enum LogLevel {
   Unknown = 0,
@@ -105,6 +127,8 @@ class Logger {
 
     void pushLog(const std::string& msg);
 
+    void pushAppLog(const std::string& msg);
+
     void log();
 
     LogLevel getLogLevel() const {
@@ -123,8 +147,11 @@ class Logger {
   private:
     LogLevel m_set_level;
     std::vector<std::string> m_buffer;
+    std::vector<std::string> m_app_buffer;
 
     Mutex m_mutex;
+
+    Mutex m_app_mutex;
 
     // m_file_path/m_file_name_yyyymmdd.1
     std::string m_file_name;  // 日志输出文件名
@@ -132,6 +159,9 @@ class Logger {
     int m_max_file_size {0};  // 日志单个文件最大大小, 单位为字节
 
     AsyncLogger::s_ptr m_async_logger;
+
+    AsyncLogger::s_ptr m_async_app_logger;
+
     TimerEvent::s_ptr m_timer_event;
 
 };

@@ -1,6 +1,7 @@
 #include <google/protobuf/service.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/message.h>
+
 #include "rocket/net/rpc/rpc_dispatcher.h"
 #include "rocket/net/rpc/rpc_controller.h"
 #include "rocket/net/coder/tinypb_protocol.h"
@@ -8,6 +9,7 @@
 #include "rocket/net/tcp/tcp_connection.h"
 #include "rocket/common/log.h"
 #include "rocket/common/error_code.h"
+#include "rocket/common/run_time.h"
 
 namespace rocket_rpc {
 
@@ -76,6 +78,8 @@ void RpcDispatcher::dispatch(AbstractProtocol::s_ptr request, AbstractProtocol::
   rpcController.SetPeerAddr(connection->getPeerAddr());
   rpcController.SetMsgId(req_protocol->m_msg_id);
 
+  RunTime::GetRunTime()->m_msgid = req_protocol->m_msg_id;
+  RunTime::GetRunTime()->m_method_name = method_name;  
   service->CallMethod(method, &rpcController, req_msg, resp_msg, NULL);
 
   if (!resp_msg->SerializeToString(&(resp_protocol->m_pb_data))) {

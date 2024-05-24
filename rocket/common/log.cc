@@ -6,6 +6,7 @@
 #include "rocket/common/util.h"
 #include "rocket/common/config.h"
 #include "rocket/net/eventloop.h"
+#include "rocket/common/run_time.h"
 
 namespace rocket_rpc {
 
@@ -16,23 +17,39 @@ Logger* Logger::GetGlobalLogger() {
 }
 
 Logger::Logger(LogLevel level) : m_set_level(level) {
+
   m_async_logger = std::make_shared<AsyncLogger>(
-    Config::GetGlobalConfig()->m_log_file_name,
+    Config::GetGlobalConfig()->m_log_file_name + "_rpc",
     Config::GetGlobalConfig()->m_log_file_path,
     Config::GetGlobalConfig()->m_log_max_file_size);
+
+  m_async_app_logger = std::make_shared<AsyncLogger>(
+    Config::GetGlobalConfig()->m_log_file_name + "_app",
+    Config::GetGlobalConfig()->m_log_file_path,
+    Config::GetGlobalConfig()->m_log_max_file_size); 
 }
 
 void Logger::syncLoop() {
   // 同步 m_buffer 到 async_logger 的 buffer 队尾
-  printf("开始同步数据到异步日志器\n");
+  // printf("sync to async logger\n");
   std::vector<std::string> tmp_vec;
   ScopeMutex<Mutex> lock(m_mutex);
   tmp_vec.swap(m_buffer);
   lock.unlock();
 
   if (!tmp_vec.empty()) {
-    printf("push tmp.size(%d)\n", tmp_vec.size());
     m_async_logger->pushLogBuffer(tmp_vec);
+  }
+  tmp_vec.clear();
+
+  // 同步 m_app_buffer 到 app_async_logger 的 buffer 队尾
+  std::vector<std::string> tmp_vec2;
+  ScopeMutex<Mutex> lock2(m_app_mutex);
+  tmp_vec2.swap(m_app_buffer);
+  lock2.unlock();
+
+  if (!tmp_vec2.empty()) {
+    m_async_app_logger->pushLogBuffer(tmp_vec2);
   }
 }
 
@@ -99,6 +116,17 @@ std::string LogEvent::toString() {
     << "[" << time_str << "]\t"
     << "[" << m_pid << ":" << m_thread_id << "]\t";
   
+  // 获取当前线程处理的请求的 msgId
+  std::string msgid = RunTime::GetRunTime()->m_msgid;
+  std::string method_name = RunTime::GetRunTime()->m_method_name;
+  if (!msgid.empty()) {
+    ss << "[" << msgid << "]\t";
+  }
+
+  if (!method_name.empty()) {
+    ss << "[" << method_name << "]\t";
+  }
+
   return ss.str();
 }
 
@@ -107,6 +135,13 @@ void Logger::pushLog(const std::string& msg) {
   m_buffer.push_back(msg);
   lock.unlock();
 }
+
+void Logger::pushAppLog(const std::string& msg) {
+  ScopeMutex<Mutex> lock(m_app_mutex);
+  m_app_buffer.push_back(msg);
+  lock.unlock();
+}
+
 
 void Logger::log() {
 
