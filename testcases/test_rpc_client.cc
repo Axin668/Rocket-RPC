@@ -103,7 +103,7 @@ void test_rpc_channel() {
   // channel->Init(controller, request, response, closure);
   // Order_Stub stub(channel.get());
   // stub.makeOrder(controller.get(), request.get(), response.get(), closure.get());
-  CALLRPC("127.0.0.1:12346", makeOrder, controller, request, response, closure);
+  CALLRPC("127.0.0.1:12346", Order_Stub, makeOrder, controller, request, response, closure);
 }
 
 int main() {

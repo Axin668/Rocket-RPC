@@ -18,11 +18,11 @@ namespace rocket_rpc {
 #define NEWRPCCONTROLLER(var_name) \
   std::shared_ptr<rocket_rpc::RpcController> var_name = std::make_shared<rocket_rpc::RpcController>(); \
 
-#define CALLRPC(addr, method_name, controller, request, response, closure) \
+#define CALLRPC(addr, stub_name, method_name, controller, request, response, closure) \
   { \
   NEWRPCCHANNEL(addr, channel); \
   channel->Init(controller, request, response, closure); \
-  Order_Stub(channel.get()).method_name(controller.get(), request.get(), response.get(), closure.get()); \
+  stub_name(channel.get()).method_name(controller.get(), request.get(), response.get(), closure.get()); \
   } \
   
 class RpcChannel : public google::protobuf::RpcChannel, public std::enable_shared_from_this<RpcChannel> {
