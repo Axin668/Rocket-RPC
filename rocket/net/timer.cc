@@ -20,6 +20,8 @@ Timer::~Timer() {
 
 void Timer::onTimer() {
 
+  DEBUGLOG("onTimer");
+
   // 处理缓冲区数据, 防止下一次继续触发可读事件
   char buf[8];
   while (1) {
@@ -93,7 +95,7 @@ void Timer::resetArriveTime() {
   timespec ts;
   memset(&ts, 0, sizeof(ts));
   ts.tv_sec = interval / 1000;
-  ts.tv_nsec = (interval % 1000) / 1000000;
+  ts.tv_nsec = (interval % 1000) * 1000000;
 
   itimerspec value;
   memset(&value, 0, sizeof(value));

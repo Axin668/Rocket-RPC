@@ -9,27 +9,17 @@
 
 namespace rocket_rpc {
 
-static Logger* g_logger = nullptr;
+static Logger* g_logger = NULL;
 
 Logger* Logger::GetGlobalLogger() {
   return g_logger;
 }
 
 Logger::Logger(LogLevel level) : m_set_level(level) {
-
-}
-
-void Logger::init() {
-  printf("开始初始化日志器\n");
   m_async_logger = std::make_shared<AsyncLogger>(
     Config::GetGlobalConfig()->m_log_file_name,
     Config::GetGlobalConfig()->m_log_file_path,
     Config::GetGlobalConfig()->m_log_max_file_size);
-  printf("异步日志器构造完成\n");
-  // 注意解决循环依赖问题(构建Logger需要TimerEvent, TimerEvent又引用了Logger::DEBUGLOG, 所以需要二段构造)
-  m_timer_event = std::make_shared<TimerEvent>(Config::GetGlobalConfig()->m_log_sync_interval, true, std::bind(&Logger::syncLoop, this)); 
-  EventLoop::GetCurrentEventLoop()->addTimerEvent(m_timer_event);
-  printf("添加定时事件完成\n");
 }
 
 void Logger::syncLoop() {
@@ -40,12 +30,17 @@ void Logger::syncLoop() {
   tmp_vec.swap(m_buffer);
   lock.unlock();
 
-  printf("axin akak\n");
-  printf("push tmp.size(%d)\n", tmp_vec.size());  
   if (!tmp_vec.empty()) {
     printf("push tmp.size(%d)\n", tmp_vec.size());
     m_async_logger->pushLogBuffer(tmp_vec);
   }
+}
+
+void Logger::init() {
+  // 注意解决循环依赖问题(构建Logger需要TimerEvent, TimerEvent又引用了Logger::DEBUGLOG, 所以需要二段构造)
+  m_timer_event = std::make_shared<TimerEvent>(Config::GetGlobalConfig()->m_log_sync_interval, true, std::bind(&Logger::syncLoop, this));
+  EventLoop::GetCurrentEventLoop()->addTimerEvent(m_timer_event);
+
 }
 
 void Logger::InitGlobalLogger() {
@@ -127,7 +122,6 @@ AsyncLogger::AsyncLogger(const std::string& file_name, const std::string& file_p
   // assert(pthread_cond_init(&m_condition, NULL) == 0);
   
   sem_wait(&m_semaphore);
-  printf("异步构造被唤醒\n");
 }
 
 void* AsyncLogger::Loop(void * arg) {
@@ -138,15 +132,14 @@ void* AsyncLogger::Loop(void * arg) {
   assert(pthread_cond_init(&logger->m_condition, NULL) == 0);
 
   sem_post(&logger->m_semaphore);
-  printf("开始唤起\n");
 
   while (1) {
     ScopeMutex<Mutex> lock(logger->m_mutex);
     while (logger->m_buffer.empty()) {
-      printf("begin pthread_cond_wait back \n");
+      // printf("begin pthread_cond_wait back \n");
       pthread_cond_wait(&(logger->m_condition), logger->m_mutex.getMutex());
     }
-    printf("pthread_cond_wait back \n");
+    // printf("pthread_cond_wait back \n");
 
     std::vector<std::string> tmp;
     tmp.swap(logger->m_buffer.front());
@@ -221,13 +214,14 @@ void AsyncLogger::flush() {
 }
 
 void AsyncLogger::pushLogBuffer(std::vector<std::string>& vec) {
+  // 这时候需要唤醒异步日志线程(异步线程没有 buffer 数据打印就会沉睡)
   ScopeMutex<Mutex> lock(m_mutex);
   m_buffer.push(vec);
-  // 这时候需要唤醒异步日志线程(异步线程没有 buffer 数据打印就会沉睡)
-  pthread_cond_signal(&m_condition);
   lock.unlock();
 
-  printf("pthread_cond_signal\n");
+  pthread_cond_signal(&m_condition);
+
+  // printf("pthread_cond_signal\n");
 }
 
 }
