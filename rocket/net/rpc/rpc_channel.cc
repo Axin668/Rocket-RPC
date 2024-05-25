@@ -85,6 +85,11 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
   s_ptr channel = shared_from_this();  // 只可用智能指针构造, 不用裸指针 or 栈对象
 
   m_timer_event = std::make_shared<TimerEvent>(my_controller->GetTimeout(), false, [my_controller, channel]() mutable {
+    if (my_controller->Finished()) {
+      channel.reset();
+      return;
+    }
+
     my_controller->StartCancel();
     my_controller->SetError(ERROR_RPC_CALL_TIMEOUT, "rpc call timeout " + std::to_string(my_controller->GetTimeout()));
 
@@ -127,13 +132,15 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
           channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
 
         // 当成功读取到回包后, 取消定时任务
-        channel->getTimerEvent()->setCanceled(true);
+        // channel->getTimerEvent()->setCanceled(true);
+        my_controller->SetFinished(true);
 
         if (!(channel->getResposne()->ParseFromString(resp_protocol->m_pb_data))) {
           ERRORLOG("%s | serialize error, peer addr[%s], local addr[%s]", 
             resp_protocol->m_msg_id.c_str(),
             channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
           my_controller->SetError(ERROR_FAILED_SERIALIZE, "serialize error");
+          channel.reset();
           return;
         }
         
@@ -143,6 +150,7 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
             resp_protocol->m_err_code, resp_protocol->m_err_info, 
             channel->getTcpClient()->getPeerAddr()->toString().c_str(), channel->getTcpClient()->getLocalAddr()->toString().c_str());
           my_controller->SetError(resp_protocol->m_err_code, resp_protocol->m_err_info);
+          channel.reset();
           return;
         }
 
@@ -155,9 +163,15 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
         }
 
         channel.reset();  // 将 rpc channel 的引用计数减一, 方便析构
+
       });
+
+      channel.reset();
     });
+
+    channel.reset();
   });
+
 
 }
 

@@ -53,6 +53,10 @@ class RpcController : public google::protobuf::RpcController {
 
     int GetTimeout();
 
+    bool Finished();
+
+    void SetFinished(bool value);
+
   private:
     int m_error_code {0};
     std::string m_error_info;
@@ -60,6 +64,7 @@ class RpcController : public google::protobuf::RpcController {
 
     bool m_is_failed {false};
     bool m_is_canceled {false};
+    bool m_is_finished {false};
 
     NetAddr::s_ptr m_local_addr;
     NetAddr::s_ptr m_peer_addr;
