@@ -82,7 +82,7 @@ void test_rpc_channel() {
   controller->SetTimeout(10000);
 
   // 创建回调函数, 业务逻辑
-  std::shared_ptr<rocket_rpc::RpcClosure> closure = std::make_shared<rocket_rpc::RpcClosure>([request, response, channel, controller]() mutable {
+  std::shared_ptr<rocket_rpc::RpcClosure> closure = std::make_shared<rocket_rpc::RpcClosure>(nullptr, [request, response, channel, controller]() mutable {
     if (controller->GetErrorCode() == 0) {
       INFOLOG("call rpc success, request[%s], resposne[%s]", request->ShortDebugString().c_str(), response->ShortDebugString().c_str());
       // 业务逻辑

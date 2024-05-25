@@ -4,6 +4,8 @@
 #include <google/protobuf/service.h>
 #include <google/protobuf/stubs/callback.h>
 #include <string>
+
+#include "rocket/common/log.h"
 #include "rocket/net/tcp/net_addr.h"
 
 namespace rocket_rpc {
@@ -11,9 +13,9 @@ namespace rocket_rpc {
 class RpcController : public google::protobuf::RpcController {
 
   public:
-    RpcController() {};
+    RpcController() { INFOLOG("RpcController") };
 
-    ~RpcController() {};
+    ~RpcController() { INFOLOG("~RpcController") };
 
     void Reset();
 

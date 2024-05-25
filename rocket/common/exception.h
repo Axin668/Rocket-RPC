@@ -1,5 +1,7 @@
-#ifndef ROCKET_RPC_COMMON_ERROR_CODER_h
-#define ROCKET_RPC_COMMON_ERROR_CODER_h
+#ifndef ROCKET_RPC_COMMON_EXCEPTION_h
+#define ROCKET_RPC_COMMON_EXCEPTION_h
+
+#include <exception>
 
 namespace rocket_rpc {
 

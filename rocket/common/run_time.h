@@ -2,9 +2,10 @@
 #define ROCKET_RPC_COMMON_RUN_TIME_H
 
 #include <string>
-#include "rocket/net/rpc/rpc_interface.h"
 
 namespace rocket_rpc {
+
+class RpcInterface;
 
 class RunTime {
   public:
