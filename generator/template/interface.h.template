@@ -11,40 +11,45 @@
  * Allow editing
 ****************************************************/
 
+#ifndef ${HEADER_DEFINE}
+#define ${HEADER_DEFINE} 
 
-#include <rocket/common/log.h>
-${INCLUDE_INTERFACE_HEADER_FILE}
-${INCLUDE_INTERFACEBASE_HEADER_FILE}
+#include <rocket/net/rpc/rpc_closure.h>
 ${INCLUDE_PB_HEADER}
+${INCLUDE_INTERFACEBASE_HEADER_FILE}
+
 
 namespace ${PROJECT_NAME} {
 
-${CLASS_NAME}::${CLASS_NAME}(const ${REQUEST_TYPE}* request, ${RESPONSE_TYPE}* response, 
-    rocket_rpc::RpcClosure* done, rocket_rpc::RpcController* controller)
-  : Interface(dynamic_cast<const google::protobuf::Message*>(request), dynamic_cast<google::protobuf::Message*>(response), done, controller),
-    m_request(request), 
-    m_response(response) {
-  APPINFOLOG("In|request:{%s}", request->ShortDebugString().c_str());
+/*
+ * Rpc Interface Class
+ * Alloc one object every time RPC call begin, and destroy this object while RPC call end
+*/
+
+class ${CLASS_NAME} : public Interface {
+ public:
+
+  ${CLASS_NAME}(const ${REQUEST_TYPE}* request, ${RESPONSE_TYPE}* response, 
+    rocket_rpc::RpcClosure* done, rocket_rpc::RpcController* controller);
+
+  ~${CLASS_NAME}();
+
+ public:
+  // core business deal method
+  virtual void run() override;
+
+  // set error code and error into to response message
+  virtual void setError(int code, const std::string& err_info) override;
+
+ private:
+  const ${REQUEST_TYPE}* m_request {NULL};       // request object fron client
+
+  ${RESPONSE_TYPE}* m_response {NULL};           // response object that reply to client
+
+};
+
+
 }
 
-${CLASS_NAME}::~${CLASS_NAME}() {
-  APPINFOLOG("Out|response:{%s}", m_response->ShortDebugString().c_str());
-}
 
-void ${CLASS_NAME}::run() {
-
-  //
-  // Run your business logic at here
-  // 
-
-  m_response->set_ret_code(0);
-  m_response->set_res_info("OK");
-
-}
-
-void ${CLASS_NAME}::setError(int code, const std::string& err_info) {
-  m_response->set_ret_code(code);
-  m_response->set_res_info(err_info);
-}
-
-}
+#endif

@@ -42,7 +42,7 @@ void test_client(const std::string& addr) {
     exit(0);
   });
 
-  CALLRPRC(addr, ${STUBCLASS}, ${METHOD_NAME}, controller, request, response, closure);
+  CALLRPC(addr, ${STUBCLASS}, ${METHOD_NAME}, controller, request, response, closure);
 
 } 
 
