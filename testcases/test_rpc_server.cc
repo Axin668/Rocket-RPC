@@ -24,6 +24,11 @@ class OrderImpl : public Order {
       }
       response->set_order_id("2024-05-21");
       APPDEBUGLOG("call makeOrder success");
+      if (done) {
+        done->Run();
+        delete done;
+        done = NULL;
+      }
     }
 };
 

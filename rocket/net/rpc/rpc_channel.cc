@@ -112,6 +112,7 @@ void RpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
 
   s_ptr channel = shared_from_this();  // 只可用智能指针构造, 不用裸指针 or 栈对象
 
+  // 执行之后定时器自行析构
   TimerEvent::s_ptr timer_event = std::make_shared<TimerEvent>(my_controller->GetTimeout(), false, [my_controller, channel]() mutable {
     INFOLOG("%s | call rpc timeout arrive", my_controller->GetMsgId().c_str());
     if (my_controller->Finished()) {

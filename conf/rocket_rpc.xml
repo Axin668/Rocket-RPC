@@ -9,7 +9,7 @@
   </log>
 
   <server>
-    <port>12346</port>
+    <port>12345</port>
     <io_threads>4</io_threads>
   </server>
 
@@ -19,7 +19,7 @@
       <!-- 调用下游RPC 服务时，需要将其 ip port 配置在此处 -->
       <name>default</name>
       <ip>0.0.0.0</ip>
-      <port>12346</port>
+      <port>12345</port>
       <timeout>1000</timeout>
     </rpc_server>
   </stubs>
