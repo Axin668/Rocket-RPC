@@ -88,7 +88,6 @@ void TcpConnection::execute() {
   if (m_connection_type == TcpConnectionByServer) { // 服务端读逻辑(主动)
     // 将 RPC 请求 执行业务逻辑, 获取 RPC 响应, 再把 RPC 响应发送回去
     std::vector<AbstractProtocol::s_ptr> result;
-    std::vector<AbstractProtocol::s_ptr> reply_messages;
     m_coder->decode(result, m_in_buffer);
     for (size_t i = 0; i < result.size(); i ++ ) {
       // 1. 针对每一个请求, 调用 rpc 方法, 获取响应 message
@@ -100,11 +99,7 @@ void TcpConnection::execute() {
       // message->m_msg_id = result[i]->m_msg_id;
 
       RpcDispatcher::GetRpcDispatcher()->dispatch(result[i], message, this);
-      reply_messages.emplace_back(message);
     }
-  
-    m_coder->encode(reply_messages, m_out_buffer);
-    listenWrite();
     
   } else { // 客户端读逻辑(被动)
     // 从 buffer 里 decode 得到 message 对象, 并执行其回调
@@ -122,6 +117,12 @@ void TcpConnection::execute() {
   }
 
 }
+
+void TcpConnection::reply(std::vector<AbstractProtocol::s_ptr>& reply_messages) {
+  m_coder->encode(reply_messages, m_out_buffer);
+  listenWrite();
+}
+
 
 void TcpConnection::onWrite() {
   // 将当前 out_buffer 里面的数据全部发送给 Client

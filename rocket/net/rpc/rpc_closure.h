@@ -6,10 +6,10 @@
 
 namespace rocket_rpc {
 
-class RpcClousre : public google::protobuf::Closure {
+class RpcClosure : public google::protobuf::Closure {
   public:
 
-    RpcClousre(std::function<void()> cb) : m_cb(cb) {}
+    RpcClosure(std::function<void()> cb) : m_cb(cb) {}
 
     void Run() override {
       if (m_cb != nullptr) {

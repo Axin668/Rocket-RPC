@@ -93,6 +93,9 @@ class AsyncLogger {
   public:
     static void* Loop(void*);
 
+  public:
+    pthread_t m_thread;
+
   private:
     // m_file_path/m_file_name_yyyymmdd.1
 
@@ -103,7 +106,6 @@ class AsyncLogger {
     int m_max_file_size {0};  // 日志单个文件最大大小, 单位为字节
 
     sem_t m_semaphore;
-    pthread_t m_thread;
 
     pthread_cond_t m_condition;  // 条件变量
     Mutex m_mutex;
@@ -129,15 +131,25 @@ class Logger {
 
     void pushAppLog(const std::string& msg);
 
+    void init();
+
     void log();
+
+    void syncLoop();
+
+    void flush();
 
     LogLevel getLogLevel() const {
       return m_set_level;
     }
 
-    void init();
+    AsyncLogger::s_ptr getAsyncAppLogger() {
+      return m_async_app_logger;
+    }
 
-    void syncLoop();
+    AsyncLogger::s_ptr getAsyncLogger() {
+      return m_async_logger;
+    }
   
   public:
     static Logger* GetGlobalLogger();

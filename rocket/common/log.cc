@@ -2,6 +2,7 @@
 #include <sstream>
 #include <stdio.h>
 #include <assert.h>
+#include <signal.h>
 #include "rocket/common/log.h"
 #include "rocket/common/util.h"
 #include "rocket/common/config.h"
@@ -11,6 +12,16 @@
 namespace rocket_rpc {
 
 static Logger* g_logger = NULL;
+
+void CoredumpHandler(int signal_no) {
+  ERRORLOG("progress received invalid signal, will exit");
+  g_logger->flush();
+  pthread_join(g_logger->getAsyncLogger()->m_thread, NULL);
+  pthread_join(g_logger->getAsyncAppLogger()->m_thread, NULL);
+
+  signal(signal_no, SIG_DFL);
+  raise(signal_no);
+}
 
 Logger* Logger::GetGlobalLogger() {
   return g_logger;
@@ -65,7 +76,21 @@ void Logger::init() {
   // 注意解决循环依赖问题(构建Logger需要TimerEvent, TimerEvent又引用了Logger::DEBUGLOG, 所以需要二段构造)
   m_timer_event = std::make_shared<TimerEvent>(Config::GetGlobalConfig()->m_log_sync_interval, true, std::bind(&Logger::syncLoop, this));
   EventLoop::GetCurrentEventLoop()->addTimerEvent(m_timer_event);
+  signal(SIGSEGV, CoredumpHandler);
+  signal(SIGABRT, CoredumpHandler);
+  signal(SIGTERM, CoredumpHandler);
+  signal(SIGKILL, CoredumpHandler);
+  signal(SIGINT, CoredumpHandler);
+  signal(SIGSTKFLT, CoredumpHandler);
+}
 
+void Logger::flush() {
+  syncLoop();
+  m_async_logger->stop();
+  m_async_logger->flush();
+
+  m_async_app_logger->stop();
+  m_async_app_logger->flush();
 }
 
 void Logger::InitGlobalLogger(int type /*=1*/) {
