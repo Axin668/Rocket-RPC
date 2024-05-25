@@ -10,7 +10,7 @@
 namespace rocket_rpc {
 
 #define NEWRPCCHANNEL(addr, var_name) \
-  std::shared_ptr<rocket_rpc::RpcChannel> var_name = std::make_shared<rocket_rpc::RpcChannel>(std::make_shared<rocket_rpc::IPNetAddr>(addr)); \
+  std::shared_ptr<rocket_rpc::RpcChannel> var_name = std::make_shared<rocket_rpc::RpcChannel>(rocket_rpc::RpcChannel::FindAddr(addr)); \
 
 #define NEWMESSAGE(type, var_name) \
   std::shared_ptr<type> var_name = std::make_shared<type>(); \
@@ -32,7 +32,13 @@ class RpcChannel : public google::protobuf::RpcChannel, public std::enable_share
     typedef std::shared_ptr<google::protobuf::RpcController> controller_s_ptr;
     typedef std::shared_ptr<google::protobuf::Message> message_s_ptr;
     typedef std::shared_ptr<google::protobuf::Closure> closure_s_ptr;
-    
+
+  public:
+    // 获取 addr
+    // 若 str 是 ip:port, 直接返回
+    // 否则认为是 rpc 服务名, 尝试从配置文件里面获取对应的 ip:port（后期会加上服务发现）
+    static NetAddr::s_ptr FindAddr(const std::string& str); 
+
   public:
     RpcChannel(NetAddr::s_ptr peer_addr);
 
@@ -54,7 +60,8 @@ class RpcChannel : public google::protobuf::RpcChannel, public std::enable_share
 
     TcpClient* getTcpClient();
 
-    TimerEvent::s_ptr getTimerEvent();
+  private:
+    void callBack();
 
   private:
     NetAddr::s_ptr m_peer_addr {nullptr};
@@ -68,8 +75,6 @@ class RpcChannel : public google::protobuf::RpcChannel, public std::enable_share
     bool m_is_init {false};
 
     TcpClient::s_ptr m_client {nullptr};
-
-    TimerEvent::s_ptr m_timer_event {nullptr};
 
 };
 
