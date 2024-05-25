@@ -72,8 +72,8 @@ void test_tcp_client() {
 
 int main() {
 
-  rocket_rpc::Config::SetGlobalConfig("../conf/rocket_rpc.xml");
-  rocket_rpc::Logger::InitGlobalLogger();
+  rocket_rpc::Config::SetGlobalConfig(NULL);
+  rocket_rpc::Logger::InitGlobalLogger(0);
 
   // test_connect();
 

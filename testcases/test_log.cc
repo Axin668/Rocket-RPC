@@ -14,8 +14,9 @@ void* fun(void*) {
 
 int main() {
 
-  rocket_rpc::Config::SetGlobalConfig("../conf/rocket_rpc.xml");
-  rocket_rpc::Logger::InitGlobalLogger();
+  rocket_rpc::Config::SetGlobalConfig(NULL);
+
+  rocket_rpc::Logger::InitGlobalLogger(0);
 
   pthread_t thread;
   pthread_create(&thread, NULL, &fun, NULL);
