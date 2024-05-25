@@ -24,6 +24,9 @@ class TcpServer {
     // 当有新客户端连接之后, 需要执行
     void onAccept();
 
+    // 清除 closed 的连接
+    void ClearClientTimerFunc();
+
   private:
     TcpAcceptor::s_ptr m_acceptor;
 
@@ -38,6 +41,8 @@ class TcpServer {
     int m_client_counts {0};
 
     std::set<TcpConnection::s_ptr> m_client;
+
+    TimerEvent::s_ptr m_clear_client_timer_event;
 
 };
 

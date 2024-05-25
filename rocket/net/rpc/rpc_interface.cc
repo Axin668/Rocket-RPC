@@ -14,6 +14,7 @@ RpcInterface::~RpcInterface() {
   INFOLOG("~RpcInterface");
 
   reply();
+  
   destroy();
 
 }

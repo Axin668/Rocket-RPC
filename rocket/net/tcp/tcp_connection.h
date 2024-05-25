@@ -46,6 +46,8 @@ class TcpConnection {
 
     void clear();
 
+    int getFd();
+
     // 服务器主动关闭连接
     void shutdown();
 

@@ -3,10 +3,11 @@
 
 #include <memory>
 #include <google/protobuf/message.h>
-#include "rocket/net/rpc/rpc_closure.h"
 #include "rocket/net/rpc/rpc_controller.h"
 
 namespace rocket_rpc {
+
+class RpcClosure;
 
 /**
  * Rpc Interface Base Class
@@ -26,7 +27,7 @@ class RpcInterface : public std::enable_shared_from_this<RpcInterface> {
     // reply to client
     // you should call it when you want to set response back
     // it means this rpc method done
-    virtual void reply();
+    void reply();
 
     // free resourse
     void destroy();
@@ -35,7 +36,7 @@ class RpcInterface : public std::enable_shared_from_this<RpcInterface> {
     std::shared_ptr<RpcClosure> newRpcClosure(std::function<void()>& cb);
 
     // set error code and error into to response message
-    virtual void setError(long long code, const std::string& err_info) = 0;
+    virtual void setError(int code, const std::string& err_info) = 0;
   
   protected:
 

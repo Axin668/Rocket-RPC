@@ -203,6 +203,10 @@ void TcpConnection::clear() {
   m_state = Closed;
 }
 
+int TcpConnection::getFd() {
+  return m_fd;
+}
+
 void TcpConnection::shutdown() {
   if (m_state == Closed || m_state == NotConnected) {
     return;

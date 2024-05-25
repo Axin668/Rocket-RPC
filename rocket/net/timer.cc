@@ -20,7 +20,7 @@ Timer::~Timer() {
 
 void Timer::onTimer() {
 
-  DEBUGLOG("onTimer");
+  // DEBUGLOG("onTimer");
 
   // 处理缓冲区数据, 防止下一次继续触发可读事件
   char buf[8];

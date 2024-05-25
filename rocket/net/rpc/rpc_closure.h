@@ -7,10 +7,9 @@
 #include "rocket/common/run_time.h"
 #include "rocket/common/log.h"
 #include "rocket/common/exception.h"
+#include "rocket/net/rpc/rpc_interface.h"
 
 namespace rocket_rpc {
-
-class RpcInterface;
 
 class RpcClosure : public google::protobuf::Closure {
   public:
@@ -34,11 +33,26 @@ class RpcClosure : public google::protobuf::Closure {
         if (m_cb != nullptr) {
           m_cb();
         }
+        if (m_rpc_interface) {
+          m_rpc_interface.reset();
+        }
       } catch (RocketException& e) {
         ERRORLOG("RocketException exception[%s], deal handle", e.what());
         e.handle();
+        if (m_rpc_interface) {
+          m_rpc_interface->setError(e.errorCode(), e.errorInfo());
+          m_rpc_interface.reset();
+        }
       } catch (std::exception& e) {
         ERRORLOG("std::exception[%s]", e.what());
+        m_rpc_interface->setError(-1, "unknown std::exception");
+        m_rpc_interface.reset();
+      } catch (...) {
+        ERRORLOG("Unknown exception");
+        if (m_rpc_interface) {
+          m_rpc_interface->setError(-1, "unknown exception");
+          m_rpc_interface.reset();
+        }
       }
 
       // // referenct count -1

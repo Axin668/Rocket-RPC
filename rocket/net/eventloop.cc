@@ -137,6 +137,7 @@ void EventLoop::loop() {
         epoll_event trigger_event = result_events[i];
         FdEvent* fd_event = static_cast<FdEvent*>(trigger_event.data.ptr);
         if (fd_event == NULL) {
+          ERRORLOG("fd_event = NULL, continue");
           continue;
         }
 
